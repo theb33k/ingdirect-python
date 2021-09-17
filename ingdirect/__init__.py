@@ -61,7 +61,10 @@ class Compte(object):
 
 def correction_encodage(chaine_mal_encodee):
     """ Fonction pour corriger l'encodage d'une chaine reçue """
-    return chaine_mal_encodee.encode("latin1").decode("utf-8")
+    try:
+        return chaine_mal_encodee.encode("latin1").decode("utf-8")
+    except UnicodeDecodeError:
+        return chaine_mal_encodee
 
 
 def synthese_comptes(num_client, date_naissance, code):
@@ -75,6 +78,8 @@ def synthese_comptes(num_client, date_naissance, code):
     ing._saisie_code()
     ing._infos_client()
     retour_synthese_comptes = ing._synthese_comptes()
+    uid = retour_synthese_comptes["accounts"][0]["uid"]
+    operations_compte_0 = ing._operations_compte(uid, max_operations=50)
     ing._logout()
 
     return Synthese_comptes(retour_synthese_comptes)

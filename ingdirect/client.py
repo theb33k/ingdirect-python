@@ -11,6 +11,8 @@ import json
 import cv2 as cv
 import numpy as np
 import os
+from PIL import Image
+import json
 
 _URL_BASE = "https://m.ing.fr/secure/api-v1/"
 _URL_LOGIN = urljoin(_URL_BASE, "login/cif")
@@ -115,14 +117,11 @@ class Client(object):
     def _trouver_chiffre(self, chiffre):
         """ Retourne les coordonnées x,y du centre du chiffre
         sur le keypad (ou retourne False sinon) """
-
         # On vérifie si l'image du keypad a déjà été récupérée
         if not hasattr(self, 'img_gray'):
             img_rgb = cv.imread(_FICHIER_KEYPAD)
             self.img_gray = cv.cvtColor(img_rgb, cv.COLOR_BGR2GRAY)
             os.remove(_FICHIER_KEYPAD)
-
-        threshold = 0.9
         if chiffre not in range(0, 10):
             retour = False
         else:
@@ -138,12 +137,9 @@ class Client(object):
                                     template,
                                     cv.TM_CCOEFF_NORMED
                                     )
-            loc = np.where(res >= threshold)
-            if len(loc[0]) >= 1 & len(loc[1]) >= 1:
-                retour = [(loc[1][0]+w/2), (loc[0][0]+h/2)]
-            else:
-                retour = False  # Le chiffre n'a pas été trouvé
-            return retour
+            min_val, max_val, min_loc, max_loc = cv.minMaxLoc(res)
+            return list(max_loc)
+
 
     def _recuperer_coord_chiffres(self):
         """ Récupère la liste des coordonnées des chiffres à saisir """
@@ -180,6 +176,15 @@ class Client(object):
         self.synthese_comptes_json = retour_synthese_comptes
 
         return retour_synthese_comptes
+
+    def _operations_compte(self, compte_uid, max_operations=50):
+        if not hasattr(self, "operations_compte"):
+            self.operations_compte = {}
+        if compte_uid not in self.operations_compte:
+            r = self._get(url=f"{_URL_SYNTHESE_COMPTES}/{compte_uid}/transactions/after/0/limit/{max_operations}")
+            self.operations_compte[compte_uid] = json.loads(r.text)
+
+        return self.operations_compte[compte_uid]
 
     def _logout(self):
         """ Se déconnecter """
